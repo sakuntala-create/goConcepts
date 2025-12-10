@@ -1,0 +1,64 @@
+// This sample program demonstrates how to use an buffered
+// channel to work on multiple tasks with a predefined number
+// of goroutines.
+package main
+
+import (
+	"fmt"
+	"math/rand"
+	"sync"
+	"time"
+)
+
+const (
+	numberOfGoroutines = 4
+	numberOfTasks      = 10
+)
+
+var (
+	wg sync.WaitGroup
+)
+
+func init() {
+	rand.Seed(time.Now().Unix())
+}
+
+func main() {
+	tasks := make(chan string, numberOfTasks)
+	wg.Add(numberOfGoroutines)
+
+	for i := 0; i < numberOfGoroutines; i++ {
+		go worker(tasks, i)
+	}
+
+	for i := 0; i < numberOfTasks; i++ {
+		tasks <- fmt.Sprintf("Task-%d", i)
+	}
+
+	close(tasks)
+	wg.Wait()
+
+}
+
+func worker(tasks chan string, id int) {
+	defer wg.Done()
+	// Report that we just returned. defer wg.Done()
+
+	for {
+		// Wait for work to be assigned.
+		task, ok := <-tasks
+		if !ok {
+			// This means the channel is empty and closed.
+			fmt.Printf("Worker: %d : Shutting Down\n", id)
+			return
+		}
+
+		// Display we are starting the work.
+		fmt.Printf("Worker: %d : Started %s\n", id, task)
+		// Randomly wait to simulate work time.
+		sleep := rand.Int63n(100)
+		time.Sleep(time.Duration(sleep) * time.Millisecond)
+		// Display we finished the work.
+		fmt.Printf("Worker: %d : Completed %s\n", id, task)
+	}
+}
